@@ -1,0 +1,138 @@
+# Shayan Panel - Iranian Movies
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.core.window import Window
+from kivy.uix.popup import Popup
+from kivy.graphics import Color, RoundedRectangle
+import webbrowser
+
+Window.clearcolor = (0.05, 0.05, 0.1, 1)
+
+MOVIES = [
+    {'title': 'A Separation', 'year': '2011', 'genre': 'Drama', 'rating': '8.3', 'link': 'https://www.imdb.com/title/tt1832382/'},
+    {'title': 'The Salesman', 'year': '2016', 'genre': 'Drama', 'rating': '7.8', 'link': 'https://www.imdb.com/title/tt5186714/'},
+    {'title': 'The Lizard', 'year': '2004', 'genre': 'Comedy', 'rating': '7.8', 'link': 'https://www.imdb.com/title/tt0422696/'},
+    {'title': 'About Elly', 'year': '2009', 'genre': 'Drama', 'rating': '7.9', 'link': 'https://www.imdb.com/title/tt1360860/'},
+    {'title': 'Glass Agency', 'year': '1998', 'genre': 'Action', 'rating': '7.5', 'link': 'https://www.imdb.com/title/tt0166950/'},
+    {'title': 'Simorgh', 'year': '2020', 'genre': 'Drama', 'rating': '7.2', 'link': 'https://www.imdb.com/title/tt13451198/'},
+    {'title': 'The Midday Event', 'year': '2017', 'genre': 'Action', 'rating': '7.0', 'link': 'https://www.imdb.com/title/tt7424696/'},
+    {'title': 'The City of Mice', 'year': '1985', 'genre': 'Animation', 'rating': '7.6', 'link': 'https://www.imdb.com/title/tt0166950/'},
+    {'title': 'Life with Closed Eyes', 'year': '2021', 'genre': 'Drama', 'rating': '6.8', 'link': 'https://www.imdb.com/title/tt15734540/'},
+    {'title': 'The Queen', 'year': '2022', 'genre': 'Drama', 'rating': '7.0', 'link': 'https://www.imdb.com/title/tt15734540/'},
+]
+
+class LoginScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        layout = BoxLayout(orientation='vertical', padding=40, spacing=15)
+        layout.add_widget(Label(text='🎬', font_size=60, color=(0.3, 0.7, 1, 1)))
+        layout.add_widget(Label(text='Shayan Panel', font_size=32, bold=True, color=(0.3, 0.7, 1, 1)))
+        layout.add_widget(Label(text='Iranian Movies', font_size=16, color=(0.6, 0.6, 0.8, 1)))
+        layout.add_widget(BoxLayout(size_hint_y=None, height=20))
+        self.username = TextInput(hint_text='Username', multiline=False, size_hint_y=None, height=50, background_color=(0.1, 0.1, 0.2, 1), foreground_color=(1, 1, 1, 1), font_size=16)
+        layout.add_widget(self.username)
+        self.password = TextInput(hint_text='Password', password=True, multiline=False, size_hint_y=None, height=50, background_color=(0.1, 0.1, 0.2, 1), foreground_color=(1, 1, 1, 1), font_size=16)
+        layout.add_widget(self.password)
+        self.error = Label(text='', color=(1, 0.3, 0.3, 1), font_size=13)
+        layout.add_widget(self.error)
+        btn = Button(text='Sign In', size_hint_y=None, height=50, background_color=(0.3, 0.7, 1, 1), font_size=18, bold=True)
+        btn.bind(on_press=self.login)
+        layout.add_widget(btn)
+        layout.add_widget(Label(text='Made with ❤️ by PasarGuard Team', color=(0.4, 0.4, 0.6, 1), font_size=11))
+        self.add_widget(layout)
+    def login(self, instance):
+        if self.username.text == 'shayanxxx' and self.password.text == '09sa':
+            self.manager.current = 'home'
+            self.error.text = ''
+        else:
+            self.error.text = 'Invalid username or password'
+
+class HomeScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
+        header = BoxLayout(size_hint_y=None, height=45)
+        header.add_widget(Label(text='Shayan Panel', font_size=20, bold=True, color=(0.3, 0.7, 1, 1), size_hint_x=0.7))
+        btn_logout = Button(text='Logout', size_hint_x=0.3, background_color=(0.8, 0.2, 0.2, 1), font_size=12)
+        btn_logout.bind(on_press=lambda x: setattr(self.manager, 'current', 'login'))
+        header.add_widget(btn_logout)
+        layout.add_widget(header)
+        search_box = BoxLayout(size_hint_y=None, height=40, spacing=10)
+        self.search = TextInput(hint_text='Search...', multiline=False, size_hint_x=0.7, background_color=(0.1, 0.1, 0.2, 1), foreground_color=(1, 1, 1, 1))
+        self.search.bind(text=self.search_movies)
+        search_box.add_widget(self.search)
+        btn_all = Button(text='All', size_hint_x=0.3, background_color=(0.3, 0.7, 1, 1))
+        btn_all.bind(on_press=self.show_all)
+        search_box.add_widget(btn_all)
+        layout.add_widget(search_box)
+        self.count = Label(text='', color=(0.6, 0.6, 0.8, 1), font_size=12, size_hint_y=None, height=20)
+        layout.add_widget(self.count)
+        scroll = ScrollView()
+        self.grid = GridLayout(cols=2, spacing=10, size_hint_y=None, padding=5)
+        self.grid.bind(minimum_height=lambda *args: setattr(self.grid, 'height', self.grid.minimum_height))
+        scroll.add_widget(self.grid)
+        layout.add_widget(scroll)
+        self.add_widget(layout)
+    def on_enter(self):
+        self.show_all(None)
+    def show_all(self, instance):
+        self.search.text = ''
+        self.load_movies(MOVIES)
+    def search_movies(self, instance, value):
+        if value:
+            filtered = [m for m in MOVIES if value.lower() in m['title'].lower()]
+            self.load_movies(filtered)
+        else:
+            self.load_movies(MOVIES)
+    def load_movies(self, movies):
+        self.grid.clear_widgets()
+        self.count.text = f'{len(movies)} movies'
+        if not movies:
+            self.grid.add_widget(Label(text='No movies found', color=(0.6, 0.6, 0.8, 1), font_size=16))
+            return
+        for movie in movies:
+            card = BoxLayout(orientation='vertical', padding=8, spacing=3, size_hint_y=None, height=160)
+            with card.canvas.before:
+                Color(0.1, 0.1, 0.2, 1)
+                self.rect = RoundedRectangle(pos=card.pos, size=card.size, radius=[10])
+            card.bind(pos=lambda *args: setattr(self.rect, 'pos', card.pos))
+            card.bind(size=lambda *args: setattr(self.rect, 'size', card.size))
+            card.add_widget(Label(text='🎬', font_size=40, size_hint_y=0.4))
+            card.add_widget(Label(text=movie['title'], font_size=11, bold=True, color=(1, 1, 1, 1), size_hint_y=0.2))
+            info = BoxLayout(size_hint_y=0.15, spacing=5)
+            info.add_widget(Label(text=f"⭐ {movie['rating']}", color=(1, 0.8, 0.1, 1), font_size=10, size_hint_x=0.5))
+            info.add_widget(Label(text=movie['year'], color=(0.6, 0.6, 0.8, 1), font_size=10, size_hint_x=0.5))
+            card.add_widget(info)
+            card.add_widget(Label(text=movie['genre'], color=(0.5, 0.5, 0.7, 1), font_size=9, size_hint_y=0.1))
+            btn = Button(text='Watch', size_hint_y=0.15, background_color=(0.3, 0.7, 1, 1), font_size=10)
+            btn.bind(on_press=lambda x, m=movie: self.watch_movie(m))
+            card.add_widget(btn)
+            self.grid.add_widget(card)
+    def watch_movie(self, movie):
+        content = BoxLayout(orientation='vertical', padding=20, spacing=10)
+        content.add_widget(Label(text=f'🎬 {movie["title"]}', font_size=22, bold=True, color=(1, 1, 1, 1), size_hint_y=None, height=40))
+        content.add_widget(Label(text=f'⭐ {movie["rating"]} | {movie["year"]} | {movie["genre"]}', font_size=14, color=(0.7, 0.7, 0.9, 1), size_hint_y=None, height=30))
+        btn_open = Button(text='Open in Browser', size_hint_y=None, height=45, background_color=(0.3, 0.7, 1, 1), font_size=14)
+        btn_open.bind(on_press=lambda x: webbrowser.open(movie['link']))
+        content.add_widget(btn_open)
+        btn_close = Button(text='Close', size_hint_y=None, height=40, background_color=(0.8, 0.2, 0.2, 1), font_size=14)
+        popup = Popup(title='Movie Info', content=content, size_hint=(0.8, 0.5), auto_dismiss=False)
+        btn_close.bind(on_press=popup.dismiss)
+        content.add_widget(btn_close)
+        popup.open()
+
+class ShayanPanelApp(App):
+    def build(self):
+        sm = ScreenManager()
+        sm.add_widget(LoginScreen(name='login'))
+        sm.add_widget(HomeScreen(name='home'))
+        return sm
+
+if __name__ == '__main__':
+    ShayanPanelApp().run()
